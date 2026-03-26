@@ -1,0 +1,10 @@
+466-Securities and Exchange Commission
+80-Office of the Comptroller of the Currency
+573-Consumer Financial Protection Bureau
+164-Federal Deposit Insurance Corporation
+497-Department of the Treasury
+188-Federal Reserve System
+
+
+git config --global user.name "Daksh Randeria"
+git config --global user.email "dakshr@gmail.com"
