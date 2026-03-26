@@ -20,7 +20,7 @@ def fetch_daily_regulations():
     url = "https://www.federalregister.gov/api/v1/documents.json"
     params = [("conditions[publication_date][is]", target_date)]
     params += [(f"conditions[agency_ids][]", agency) for agency in AGENCY_IDS]
-    params += [(f"fields[]", field) for field in ["document_number", "title", "publication_date", "agencies", "abstract", "html_url"]]
+    params += [(f"fields[]", field) for field in ["document_number", "title", "publication_date", "agency_names", "abstract", "html_url"]]
     
     try:
         response = requests.get(url, params=params)
@@ -30,13 +30,13 @@ def fetch_daily_regulations():
         # We return the formatted list ready for Supabase
         cleaned_docs = []
         for doc in results:
-            # Safe agency name extraction
-            raw_agencies = doc.get("agencies", [])
-            agency_names = []
-            if isinstance(raw_agencies, list):
-                for a in raw_agencies:
-                    name = a.get("name") or a.get("raw_name") or "Unknown Agency"
-                    agency_names.append(name)
+            # Grab the list of names directly from the API response.
+            # It's already a list of strings like ["Securities and Exchange Commission"]
+            agency_names = doc.get("agency_names")
+
+            # Fallback if the list is empty or None
+            if not agency_names:
+                agency_names = ["Unknown Agency"]
 
             cleaned_docs.append({
                 "document_number": doc.get("document_number"),
@@ -53,49 +53,12 @@ def fetch_daily_regulations():
         print(f"❌ Error fetching daily regs: {e}")
         return []
 
-# def upsert_to_supabase(docs):
-#     for doc in docs:
-#         data = {
-#             "document_number": doc["document_number"],
-#             "title": doc["title"],
-#             "publication_date": doc["publication_date"],
-#             "agency_names": [a["name"] for a in doc["agencies"]],
-#             "summary": doc.get("abstract"),
-#             "html_url": doc["html_url"],
-#             "raw_json": doc
-#         }
-        
-#         # Upsert logic to prevent duplicates
-#         supabase.table("regulations").upsert(data, on_conflict="document_number").execute()
-
-def upsert_to_supabase(records):
+def upsert_to_supabase(records):     
+    # THE MOVER JUST MOVES DATA
     for doc in records:
-        # 1. THE FIX: Use .get() to avoid the KeyError if 'agencies' is missing
-        raw_agencies = doc.get("agencies", [])
-        
-        agency_names = []
-        # Ensure it's a list before iterating
-        if isinstance(raw_agencies, list):
-            for a in raw_agencies:
-                # Safely get the name, or fallback to 'Unknown'
-                name = a.get("name") or a.get("raw_name") or "Unknown Agency"
-                agency_names.append(name)
-
-        # 2. Safely build the data object using .get() for everything
-        data = {
-            "document_number": doc.get("document_number"),
-            "title": doc.get("title"),
-            "publication_date": doc.get("publication_date"),
-            "agency_names": agency_names,
-            "summary": doc.get("abstract"),
-            "html_url": doc.get("html_url"),
-            "raw_json": doc
-        }
-        
-        # 3. Use a nested try-except so one bad row doesn't kill the whole run
         try:
             # Upsert logic to prevent duplicates
-            supabase.table("regulations").upsert(data).execute()
+            supabase.table("regulations").upsert(doc).execute()
         except Exception as e:
             print(f"⚠️ Skipping doc {doc.get('document_number')} due to DB error: {e}")
 
