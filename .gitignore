@@ -2,3 +2,7 @@
 .env
 __pycache__/
 ingest_onetime.py
+test-groq.py
+Gemini.md
+project-notes/
+project-archive/
