@@ -46,23 +46,6 @@ def fetch_node(state: AgentState):
             "agency_names":agency_names, 
             "internal_logs": [f"Fetched rule with {len(agency_names)} agencies."]}
 
-# def triage_node(state: AgentState):
-#     """Calculates velocity to detect a 'Regime Shift'."""
-#     # 1. Check historical velocity (last 7 days)
-#     one_week_ago = (datetime.now() - timedelta(days=7)).isoformat()
-#     velocity_res = supabase.table("regulations") \
-#         .select("*", count='exact') \
-#         .gt("publication_date", one_week_ago) \
-#         .execute()
-    
-#     current_velocity = velocity_res.count if velocity_res.count else 0
-    
-#     # 2. Logic: If we see more than 5 rules a week, it's a spike.
-#     is_shift = current_velocity > 5 
-#     log_msg = f"Triage complete: {current_velocity} rules this week. Regime Shift = {is_shift}."
-    
-#     return {"is_regime_shift": is_shift, "internal_logs": [log_msg]}
-
 import json
 from datetime import datetime, timedelta
 
@@ -171,10 +154,6 @@ def research_node(state: AgentState):
         
         # 4. Clean and format the findings
         formatted_notes = []
-
-        # for res in search_results:
-        #     note = f"Source: {res['url']}\nAnalysis: {res['content']}\n"
-        #     formatted_notes.append(note)
         
         for i, res in enumerate(search_results, 1):
             # 1. Clean the content (optional: truncate if too long for a brief)
@@ -190,16 +169,7 @@ def research_node(state: AgentState):
             evidence of a shift regarding {state.get('primary_keywords', ['the industry'])[0]}.
             """
             dynamic_analysis = llm.invoke(analysis_prompt).content
-
-            # 2. Build a structured Markdown block
-            # note = (
-            #     f"### 🔍 Source {i}: {res.get('title', 'Regulatory Reference')}\n"
-            #     f"**Link:** {res['url']}\n\n"
-            #     f"**Key Findings:**\n>{raw_content[:500]}...\n\n" # Using a blockquote for the raw source
-            #     f"**Agent Analysis:** The context above indicates a shift in "
-            #     f"enforcement priority regarding {state.get('primary_keywords', ['this area'])[0]}.\n"
-            #     f"---" # Horizontal rule to separate sources
-            # )
+            
             note = {
                 "source_num": i,
                 "title": res.get('title', 'Regulatory Reference'),

@@ -2,19 +2,7 @@ import streamlit as st
 from supabase import create_client
 import os
 from agent import app  # Importing your Milestone 2 "Brain"
-
-# st.markdown("""
-#     <style>
-#     div.stButton > button:first-child {
-#         background-color: #0066cc;
-#         color: white;
-#         border-radius: 5px;
-#     }
-#     div.stButton > button:hover {
-#         background-color: #0052a3;
-#         color: white;
-#     }
-#     </style>""", unsafe_allow_html=True)
+import datetime
 
 # 1. Professional Blue Styling
 st.markdown("""
@@ -41,22 +29,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# st.markdown("""
-#     <style>
-#     /* Target the primary button specifically */
-#     .stButton>button[kind="primary"] {
-#         background-color: #004a99; /* Professional Navy Blue */
-#         border-color: #004a99;
-#         color: white;
-#         width: 100%; /* Ensures it fills the column as requested */
-#     }
-#     .stButton>button[kind="primary"]:hover {
-#         background-color: #003366; /* Darker blue on hover */
-#         border-color: #003366;
-#     }
-#     </style>
-# """, unsafe_allow_html=True)
-
 # --- 1. SETUP & CONFIG ---
 # Added initial_sidebar_state for a cleaner default look
 st.set_page_config(page_title="Regulatory Radar", layout="wide", initial_sidebar_state="collapsed")
@@ -68,35 +40,7 @@ def get_recent_regulations():
     response = supabase.table("regulations").select("*").order("publication_date", desc=True).limit(30).execute()
     return response.data
 
-# # --- 3. UI UPGRADE: THE MODAL WAR ROOM ---
-# # The @st.dialog decorator turns this entire function into a pop-up overlay
-# @st.dialog("🔍 Active Investigation: Agent War Room", width="large")
-# def run_investigation_modal(reg_id, title, is_demo):
-#     st.markdown(f"**Target:** {title}")
-    
-#     # 1. The Thinking Trace (Now full width inside the modal)
-#     with st.status("🧠 Agent Reasoning Trace...", expanded=True) as status:
-#         inputs = {
-#             "regulation_id": str(reg_id),
-#             "is_demo": is_demo
-#         }
-
-#         final_state = {}
-        
-#         for event in app.stream(inputs):
-#             for node, state in event.items():
-#                 final_state = state 
-#                 if "internal_logs" in state:
-#                     # Formatted as code blocks for a cooler "terminal" aesthetic
-#                     st.markdown(f"**`[{node.upper()}]`** ➔ {state['internal_logs'][-1]}")
-#                 status.update(label=f"Current Node: {node.title()}...")
-        
-#         status.update(label="✅ Investigation Complete", state="complete")
-        
-#     # 2. Display the final results below the trace
-#     display_executive_brief(final_state)
-
-@st.dialog("🔍 Active Investigation: Agent War Room", width="large")
+@st.dialog("🔍 Active Investigation: Agent Intelligence Suite", width="large")
 
 def run_investigation_modal(reg_id, title, is_demo):
     st.markdown(f"**Target:** {title}")
@@ -152,22 +96,6 @@ def display_executive_brief(state):
     st.subheader("Executive Summary")
     st.info(state.get("final_summary", "No summary generated."))
 
-    # # Layout adjustment: 60/40 split for better readability
-    # col1, col2 = st.columns([9, 1])
-    # with col1:
-    #     st.subheader("Executive Summary")
-    #     st.info(state.get("final_summary", "No summary generated."))
-    # with col2:
-    #     st.subheader("Key Topics")
-    #     # Display tags horizontally using markdown instead of buttons for a cleaner look
-    #     tags = state.get("primary_keywords", [])
-    #     if tags:
-    #         tag_html = " ".join([f"<span style='background-color: #0066cc; padding: 4px 8px; border-radius: 4px; margin-right: 5px; color: white; font-size: 14px;'>🏷️ {tag}</span>" for tag in tags])
-    #         st.markdown(tag_html, unsafe_allow_html=True)
-    #     else:
-    #         # Fallback if no keywords were generated
-    #         st.caption("Standard Regulatory Review")
-
     # Deep Research Section
     if state.get("is_regime_shift") and state.get("research_notes"):
         st.divider()
@@ -195,13 +123,39 @@ def display_executive_brief(state):
                 st.success(f"**Agent Analysis:** {note['analysis']}")
 
 # --- 4. MAIN UI LOOP ---
-# st.title("🛡️ Regulatory Radar")
-# st.markdown("Monitoring US Federal Agencies for new regulations impacting the financial services industry. Click **Investigate** to trigger the AI agent.")
 
-# --- top of dashboard.py (Inside Main UI Loop) ---
+# Calculate the 7-day threshold
+seven_days_ago = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+
+def get_velocity_metrics():
+    """Calculates current 7-day activity vs previous 7-day activity."""
+    # 1. Define the three timestamps
+    now = datetime.datetime.now()
+    t_minus_7 = (now - datetime.timedelta(days=7)).isoformat()
+    t_minus_14 = (now - datetime.timedelta(days=14)).isoformat()
+
+    # 2. Fetch Count for Current Week (0-7 days ago)
+    curr_res = supabase.table("regulations").select("id", count="exact")\
+        .filter("publication_date", "gte", t_minus_7).execute()
+    current_count = curr_res.count if curr_res.count else 0
+
+    # 3. Fetch Count for Previous Week (8-14 days ago)
+    prev_res = supabase.table("regulations").select("id", count="exact")\
+        .filter("publication_date", "gte", t_minus_14)\
+        .filter("publication_date", "lt", t_minus_7).execute()
+    previous_count = prev_res.count if prev_res.count else 0
+
+    # 4. Calculate Percentage Change
+    if previous_count == 0:
+        # Handle division by zero
+        percent_change = 100 if current_count > 0 else 0
+    else:
+        percent_change = ((current_count - previous_count) / previous_count) * 100
+    
+    return current_count, percent_change
 
 # Create a clean header row for title and info
-head_col1, head_col2 = st.columns([9.6, 0.4])
+head_col1, head_col2, head_col3 = st.columns([8, 1.6, 0.4])
 
 with head_col1:
     st.title("🛡️ Regulatory Radar: Agentic Intelligence")
@@ -211,7 +165,21 @@ with head_col1:
             "The AI Agent will autonomously triage the risk and conduct deep research if a policy shift is detected.")
 
 with head_col2:
-    st.write("##") # Alignment spacer
+    # Fetch the new data
+    current_vol, pct_change = get_velocity_metrics()
+    
+    # Format the delta string (e.g., "+15.5% vs last week")
+    delta_str = f"{pct_change:+.1f}% vs last week"
+    
+    st.metric(
+        label="7-Day Activity", 
+        value=f"{current_vol} Regulations",
+        delta=delta_str,
+        delta_color="inverse" # Green for down, Red for up, since we want to highlight increases in regulatory activity as a risk factor
+    )
+
+with head_col3:
+
     # Use a popover for a modern, sleek "Info" feel
     with st.popover("ℹ️", use_container_width=True):
         st.markdown("### Welcome to Regulatory Radar")
@@ -243,13 +211,15 @@ with head_col2:
         """)
         st.divider()
         st.caption("Powered by Llama-3.3-70b on Groq for sub-second inference.")
+    st.write("##") # Alignment spacer
+
 
 # --- end of info section ---
 
 # Header layout with the Demo toggle integrated cleanly
 header_col1, header_col2 = st.columns([9, 1])
 with header_col2:
-    demo_mode = st.toggle("Enable Demo Mode")
+    demo_mode = st.toggle("Demo Mode")
 if demo_mode:
     st.warning("🧪 Demo Mode Active: Simulating Regime Shift and high-velocity agency activity.")
 
