@@ -1,0 +1,26 @@
+name: Repositiory Keep Alive
+
+on:
+  schedule:
+    # Runs at 00:00 on the 1st of every month
+    - cron: '0 0 1 * *'
+  workflow_dispatch: # Allows you to test it manually
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Create Inactivity Reset Commit
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@://github.com"
+        
+        # Creates or updates a simple log file with the latest execution date
+        echo "Last activity reset: $(date)" > .github/keep_alive.txt
+        
+        git add .github/keep_alive.txt
+        git commit -m "chore: reset repository inactivity timer [skip ci]" || exit 0
+        git push
